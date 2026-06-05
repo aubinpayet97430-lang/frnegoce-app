@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
-import { ArrowLeft, Download } from 'lucide-react'
+import Link from 'next/link'
+import { ArrowLeft, Download, Pencil, Trash2 } from 'lucide-react'
 import { genererPDFAchat } from '@/lib/pdf'
 import { formatEuro, formatDate } from '@/lib/utils'
 
@@ -43,10 +44,24 @@ export default function BCADetailPage() {
             <h1 className="text-2xl font-bold text-gray-900">BCA {bc.numero}</h1>
             <p className="text-gray-500 text-sm">{formatDate(bc.date)} — {bc.fournisseur}</p>
           </div>
-          <button onClick={() => genererPDFAchat(bc as Parameters<typeof genererPDFAchat>[0])}
-            className="flex items-center gap-2 bg-gray-900 hover:bg-gray-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl">
-            <Download size={15} /> PDF
-          </button>
+          <div className="flex gap-2">
+            <Link href={`/achat/commandes/${id}/modifier`}
+              className="flex items-center gap-2 bg-amber-50 hover:bg-amber-100 text-amber-700 text-sm font-semibold px-3 py-2.5 rounded-xl">
+              <Pencil size={15} /> Modifier
+            </Link>
+            <button onClick={() => genererPDFAchat(bc as Parameters<typeof genererPDFAchat>[0])}
+              className="flex items-center gap-2 bg-gray-900 hover:bg-gray-700 text-white text-sm font-semibold px-3 py-2.5 rounded-xl">
+              <Download size={15} /> PDF
+            </button>
+            <button onClick={async () => {
+              if (!confirm('Supprimer cette commande achat ?')) return
+              const supabase = createClient()
+              await supabase.from('bons_commande_achat').delete().eq('id', id)
+              router.push('/achat/commandes')
+            }} className="flex items-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 text-sm font-semibold px-3 py-2.5 rounded-xl">
+              <Trash2 size={15} />
+            </button>
+          </div>
         </div>
 
         {/* Résumé marge */}

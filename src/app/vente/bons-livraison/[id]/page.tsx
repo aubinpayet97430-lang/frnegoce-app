@@ -4,7 +4,7 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
-import { ArrowLeft, Download, FileText } from 'lucide-react'
+import { ArrowLeft, Download, FileText, Pencil, Trash2 } from 'lucide-react'
 import { genererPDFBL } from '@/lib/pdf'
 import { formatEuro, formatDate } from '@/lib/utils'
 
@@ -19,6 +19,14 @@ export default function BLVenteDetailPage() {
   const { id } = useParams<{ id: string }>()
   const [bl, setBl] = useState<BL | null>(null)
   const [loading, setLoading] = useState(true)
+
+  async function supprimer() {
+    if (!confirm('Supprimer ce bon de livraison ?')) return
+    const supabase = createClient()
+    if (bl?.bc_id) await supabase.from('bons_commande_vente').update({ bl_id: null }).eq('id', bl.bc_id)
+    await supabase.from('bons_livraison_vente').delete().eq('id', id)
+    router.push('/vente/bons-livraison')
+  }
 
   useEffect(() => {
     const supabase = createClient()
@@ -44,10 +52,19 @@ export default function BLVenteDetailPage() {
             <h1 className="text-2xl font-bold text-gray-900">BL {bl.numero}</h1>
             <p className="text-gray-500 text-sm">{formatDate(bl.date)} — {bl.client_nom}</p>
           </div>
-          <button onClick={() => genererPDFBL(bl as Parameters<typeof genererPDFBL>[0])}
-            className="flex items-center gap-2 bg-gray-900 hover:bg-gray-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl">
-            <Download size={15} /> PDF
-          </button>
+          <div className="flex gap-2">
+            <Link href={`/vente/bons-livraison/${id}/modifier`}
+              className="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-sm font-semibold px-3 py-2.5 rounded-xl">
+              <Pencil size={15} /> Modifier
+            </Link>
+            <button onClick={() => genererPDFBL(bl as Parameters<typeof genererPDFBL>[0])}
+              className="flex items-center gap-2 bg-gray-900 hover:bg-gray-700 text-white text-sm font-semibold px-3 py-2.5 rounded-xl">
+              <Download size={15} /> PDF
+            </button>
+            <button onClick={supprimer} className="flex items-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 text-sm font-semibold px-3 py-2.5 rounded-xl">
+              <Trash2 size={15} />
+            </button>
+          </div>
         </div>
 
         {bl.bc_id && (
