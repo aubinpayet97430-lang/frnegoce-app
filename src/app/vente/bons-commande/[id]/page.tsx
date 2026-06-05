@@ -11,7 +11,7 @@ import { formatEuro, formatDate } from '@/lib/utils'
 interface BC {
   id: string; numero: string; date: string; client_nom: string
   lignes: { nom_produit: string; quantite_caisses: number; pcb: number; unite: string; prix_unitaire: number; total: number }[]
-  total_bc: number; bl_id: string | null; statut: string
+  total_bc: number; bl_id: string | null; statut: string; date_livraison?: string
 }
 interface BL { id: string; numero: string; date: string; total_bl: number }
 
@@ -62,6 +62,7 @@ export default function BCVenteDetailPage() {
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-gray-900">BC {bc.numero}</h1>
             <p className="text-gray-500 text-sm">{formatDate(bc.date)} — {bc.client_nom}</p>
+            {bc.date_livraison && <p className="text-xs text-indigo-600 font-medium mt-0.5">📦 Livraison souhaitée : {new Date(bc.date_livraison).toLocaleDateString('fr-FR')}</p>}
           </div>
           <div className="flex gap-2">
             <Link href={`/vente/bons-commande/${id}/modifier`}

@@ -14,6 +14,7 @@ function newLigne(): Ligne {
 export default function NouveauBesoinPage() {
   const router = useRouter()
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+  const [date_livraison, setDateLivraison] = useState('')
   const [client, setClient] = useState('Leclerc')
   const [lignes, setLignes] = useState<Ligne[]>([newLigne()])
   const [saving, setSaving] = useState(false)
@@ -34,7 +35,7 @@ export default function NouveauBesoinPage() {
     setSaving(true)
     const supabase = createClient()
     const { error } = await supabase.from('besoins_clients').insert({
-      date, client,
+      date, date_livraison: date_livraison || null, client,
       lignes: valides.map(({ id: _, ...l }) => l)
     })
     if (!error) router.push('/achat/besoins')
@@ -54,7 +55,7 @@ export default function NouveauBesoinPage() {
 
         <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-4 grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Date</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Date de saisie</label>
             <input type="date" value={date} onChange={e => setDate(e.target.value)}
               className="w-full border border-gray-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
           </div>
@@ -62,6 +63,11 @@ export default function NouveauBesoinPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Client</label>
             <input type="text" value={client} onChange={e => setClient(e.target.value)}
               placeholder="Ex: Leclerc, Métro..."
+              className="w-full border border-gray-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+          </div>
+          <div className="col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Date de livraison souhaitée</label>
+            <input type="date" value={date_livraison} onChange={e => setDateLivraison(e.target.value)}
               className="w-full border border-gray-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
           </div>
         </div>

@@ -17,6 +17,7 @@ interface LigneBesoin {
 interface BesoinClient {
   id: string
   date: string
+  date_livraison?: string
   client: string
   lignes: LigneBesoin[]
   created_at: string
@@ -86,6 +87,7 @@ export default function BesoinsPage() {
                     <div className="text-left">
                       <p className="font-semibold text-gray-900">{b.client}</p>
                       <p className="text-sm text-gray-500">{formatDate(b.date)} — {b.lignes.length} produit{b.lignes.length > 1 ? 's' : ''}</p>
+                      {b.date_livraison && <p className="text-xs text-amber-600 font-medium mt-0.5">📦 Livraison souhaitée : {new Date(b.date_livraison).toLocaleDateString('fr-FR')}</p>}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
