@@ -8,10 +8,11 @@ import { genNumero, formatEuro } from '@/lib/utils'
 import { Unite } from '@/types'
 import { Suspense } from 'react'
 
-interface Ligne { id: string; nom_produit: string; quantite_caisses: number; pcb: number; unite: Unite; prix_unitaire: number; total: number }
+interface Produit { id: string; nom: string; pcb: number; unite: Unite }
+interface Ligne { id: string; produit_id: string; nom_produit: string; quantite_caisses: number; pcb: number; unite: Unite; prix_unitaire: number; total: number }
 
 function newLigne(): Ligne {
-  return { id: crypto.randomUUID(), nom_produit: '', quantite_caisses: 0, pcb: 1, unite: 'caisse', prix_unitaire: 0, total: 0 }
+  return { id: crypto.randomUUID(), produit_id: '', nom_produit: '', quantite_caisses: 0, pcb: 1, unite: 'caisse', prix_unitaire: 0, total: 0 }
 }
 
 function NouveauBLForm() {
@@ -22,12 +23,14 @@ function NouveauBLForm() {
 
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
   const [lignes, setLignes] = useState<Ligne[]>([newLigne()])
+  const [produits, setProduits] = useState<Produit[]>([])
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
+    const supabase = createClient()
+    supabase.from('produits').select('*').order('nom').then(({ data }) => setProduits(data || []))
     // Si lié à un BC, pré-remplir les lignes depuis le BC
     if (!bc_id) return
-    const supabase = createClient()
     supabase.from('bons_commande_vente').select('lignes').eq('id', bc_id).single().then(({ data }) => {
       if (data?.lignes) {
         setLignes(data.lignes.map((l: Omit<Ligne, 'id'>) => ({ ...l, id: crypto.randomUUID() })))
@@ -99,9 +102,19 @@ function NouveauBLForm() {
                 )}
               </div>
               <div className="space-y-3">
-                <input type="text" placeholder="Nom du produit" value={ligne.nom_produit}
-                  onChange={e => updateLigne(ligne.id, 'nom_produit', e.target.value)}
-                  className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                <div className="flex gap-2 items-center">
+                  <select value={ligne.produit_id} onChange={e => {
+                    const p = produits.find(p => p.id === e.target.value)
+                    setLignes(prev => prev.map(l => l.id === ligne.id ? { ...l, produit_id: e.target.value, nom_produit: p?.nom || '', pcb: p?.pcb || 1, unite: p?.unite || 'caisse' } : l))
+                  }} className="flex-1 border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <option value="">-- Catalogue --</option>
+                    {produits.map(p => <option key={p.id} value={p.id}>{p.nom} (PCB {p.pcb})</option>)}
+                  </select>
+                  <span className="text-xs text-gray-400">ou</span>
+                  <input type="text" placeholder="Saisir librement" value={ligne.produit_id ? '' : ligne.nom_produit}
+                    onChange={e => updateLigne(ligne.id, 'nom_produit', e.target.value)}
+                    className="flex-1 border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div>
                     <label className="text-xs text-gray-500 mb-1 block">Nb caisses</label>
