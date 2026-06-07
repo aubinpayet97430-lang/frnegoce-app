@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { LayoutDashboard, ShoppingCart, Truck, BookOpen, LogOut, Menu, X, ShoppingBag, Receipt } from 'lucide-react'
+import { LayoutDashboard, ShoppingCart, Truck, BookOpen, LogOut, Menu, X, ShoppingBag, Receipt, Settings } from 'lucide-react'
 import { useState } from 'react'
 
 const links = [
@@ -12,6 +12,7 @@ const links = [
   { href: '/achat/besoins', label: 'Besoins', icon: ShoppingBag },
   { href: '/catalogue', label: 'Catalogue', icon: BookOpen },
   { href: '/factures', label: 'Factures', icon: Receipt },
+  { href: '/reglages', label: 'Réglages', icon: Settings },
 ]
 
 export default function Navbar() {

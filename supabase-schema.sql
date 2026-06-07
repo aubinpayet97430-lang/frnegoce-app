@@ -52,8 +52,46 @@ create table bons_commande_achat (
   created_at timestamptz default now()
 );
 
+-- Besoins clients
+create table besoins_clients (
+  id uuid primary key default gen_random_uuid(),
+  date date not null,
+  date_livraison date,
+  client text not null,
+  lignes jsonb not null default '[]',
+  created_at timestamptz default now()
+);
+
+-- Factures de commission
+create table factures_commission (
+  id uuid primary key default gen_random_uuid(),
+  numero text not null,
+  semaine text not null,
+  date date not null,
+  ca_eligible numeric not null default 0,
+  montant_commission numeric not null default 0,
+  statut text not null default 'en_attente',
+  lignes jsonb not null default '[]',
+  commentaire text,
+  pdf_url text,
+  created_at timestamptz default now()
+);
+
+-- Profil utilisateur (une seule ligne)
+create table profil_utilisateur (
+  id uuid primary key default gen_random_uuid(),
+  nom text not null default '',
+  adresse text not null default '',
+  siret text not null default '',
+  email text not null default '',
+  created_at timestamptz default now()
+);
+
 -- Permissions
 grant all on produits to anon, authenticated;
 grant all on bons_commande_vente to anon, authenticated;
 grant all on bons_livraison_vente to anon, authenticated;
 grant all on bons_commande_achat to anon, authenticated;
+grant all on besoins_clients to anon, authenticated;
+grant all on factures_commission to anon, authenticated;
+grant all on profil_utilisateur to anon, authenticated;
