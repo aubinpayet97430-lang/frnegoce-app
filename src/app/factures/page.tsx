@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
-import { Plus, FileText, Clock, CheckCircle, XCircle, Eye } from 'lucide-react'
+import { Plus, FileText, Clock, CheckCircle, XCircle, ChevronRight } from 'lucide-react'
 import { formatEuro, formatDate } from '@/lib/utils'
 
 interface Facture {
@@ -77,36 +77,30 @@ export default function FacturesPage() {
         ) : (
           <div className="space-y-3">
             {(onglet === 'en_attente' ? enAttente : traitees).map(f => (
-              <div key={f.id} className="bg-white rounded-2xl border border-gray-200 px-5 py-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                      f.statut === 'validee' ? 'bg-emerald-100' : f.statut === 'rejetee' ? 'bg-red-100' : 'bg-amber-100'
-                    }`}>
-                      {f.statut === 'validee' ? <CheckCircle size={16} className="text-emerald-600" /> :
-                       f.statut === 'rejetee' ? <XCircle size={16} className="text-red-600" /> :
-                       <Clock size={16} className="text-amber-600" />}
-                    </div>
-                    <div>
-                      <p className="font-semibold text-gray-900">{f.numero}</p>
-                      <p className="text-sm text-gray-500">Semaine {f.semaine} — {formatDate(f.date)}</p>
-                      {f.commentaire && <p className="text-xs text-red-500 mt-0.5">{f.commentaire}</p>}
-                    </div>
+              <Link key={f.id} href={`/factures/${f.id}`}
+                className="flex items-center justify-between bg-white rounded-2xl border border-gray-200 px-5 py-4 hover:border-indigo-300 hover:shadow-sm transition-all">
+                <div className="flex items-center gap-3">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+                    f.statut === 'validee' ? 'bg-emerald-100' : f.statut === 'rejetee' ? 'bg-red-100' : 'bg-amber-100'
+                  }`}>
+                    {f.statut === 'validee' ? <CheckCircle size={16} className="text-emerald-600" /> :
+                     f.statut === 'rejetee' ? <XCircle size={16} className="text-red-600" /> :
+                     <Clock size={16} className="text-amber-600" />}
                   </div>
-                  <div className="text-right flex items-center gap-3">
-                    <div>
-                      <p className="font-bold text-gray-900">{formatEuro(f.montant_commission)}</p>
-                      <p className="text-xs text-gray-400">CA éligible : {formatEuro(f.ca_eligible)}</p>
-                    </div>
-                    {f.pdf_url && (
-                      <a href={f.pdf_url} target="_blank" rel="noopener noreferrer"
-                        className="p-2 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors">
-                        <Eye size={18} />
-                      </a>
-                    )}
+                  <div>
+                    <p className="font-semibold text-gray-900">{f.numero}</p>
+                    <p className="text-sm text-gray-500">Semaine {f.semaine} — {formatDate(f.date)}</p>
+                    {f.commentaire && <p className="text-xs text-red-500 mt-0.5">{f.commentaire}</p>}
                   </div>
                 </div>
-              </div>
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <p className="font-bold text-gray-900">{formatEuro(f.montant_commission)}</p>
+                    <p className="text-xs text-gray-400">CA éligible : {formatEuro(f.ca_eligible)}</p>
+                  </div>
+                  <ChevronRight size={18} className="text-gray-300" />
+                </div>
+              </Link>
             ))}
           </div>
         )}
