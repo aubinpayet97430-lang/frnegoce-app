@@ -24,6 +24,8 @@ interface Facture {
   statut: 'en_attente' | 'validee' | 'rejetee'
   lignes: LigneFacture[]
   commentaire?: string
+  client?: { nom: string; adresse: string }
+  mention_tva?: string
 }
 
 interface Profil {
@@ -80,9 +82,11 @@ export default function FactureDetailPage() {
       annee: parseInt(anneeStr),
       date: facture.date,
       profil,
+      client: facture.client || { nom: 'Vindemia Logistique', adresse: '' },
       lignes: facture.lignes,
       ca_eligible: facture.ca_eligible,
       montant_commission: facture.montant_commission,
+      mention_tva: facture.mention_tva,
     })
   }
 

@@ -30,6 +30,11 @@ interface Profil {
   email: string
 }
 
+interface Client {
+  nom: string
+  adresse: string
+}
+
 function getNumSemaine(date: Date): number {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
   const dayNum = d.getUTCDay() || 7
@@ -45,6 +50,8 @@ export default function NouvelleFacturePage() {
   const [bls, setBls] = useState<BL[]>([])
   const [lignes, setLignes] = useState<LigneSelectionnee[]>([])
   const [profil, setProfil] = useState<Profil>({ nom: '', adresse: '', siret: '', email: '' })
+  const [client, setClient] = useState<Client>({ nom: 'Vindemia Logistique', adresse: '' })
+  const [mentionTva, setMentionTva] = useState('TVA non applicable, art. 293 B du CGI')
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
 
@@ -124,27 +131,33 @@ export default function NouvelleFacturePage() {
 
     const lignesEligibles = lignes.filter(l => l.eligible)
 
+    const dateFacture = new Date().toISOString().slice(0, 10)
+
     // Générer PDF
     genererPDFFacture({
       numero,
       semaine,
       annee,
-      date: new Date().toISOString().slice(0, 10),
+      date: dateFacture,
       profil,
+      client,
       lignes: lignesEligibles,
       ca_eligible: caEligible,
       montant_commission: commission,
+      mention_tva: mentionTva,
     })
 
     // Enregistrer en base
     await supabase.from('factures_commission').insert({
       numero,
       semaine: `${annee}-S${semaine}`,
-      date: new Date().toISOString().slice(0, 10),
+      date: dateFacture,
       ca_eligible: caEligible,
       montant_commission: commission,
       statut: 'en_attente',
       lignes: lignesEligibles,
+      client,
+      mention_tva: mentionTva,
     })
 
     router.push('/factures')
@@ -184,6 +197,31 @@ export default function NouvelleFacturePage() {
               <label className="text-xs text-gray-500 mb-1 block">Adresse</label>
               <input type="text" value={profil.adresse} onChange={e => setProfil(p => ({ ...p, adresse: e.target.value }))}
                 placeholder="1 rue de la Coopérative, 97400 Saint-Denis" className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+          </div>
+        </div>
+
+        {/* Client */}
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-4">
+          <p className="text-sm font-semibold text-gray-700 mb-3">Informations client</p>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Nom / Raison sociale</label>
+              <input type="text" value={client.nom} onChange={e => setClient(c => ({ ...c, nom: e.target.value }))}
+                placeholder="Vindemia Logistique"
+                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Adresse</label>
+              <textarea value={client.adresse} onChange={e => setClient(c => ({ ...c, adresse: e.target.value }))}
+                placeholder="1 rue du Port, 97400 Saint-Denis"
+                rows={2}
+                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Mention légale TVA</label>
+              <input type="text" value={mentionTva} onChange={e => setMentionTva(e.target.value)}
+                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
           </div>
         </div>
