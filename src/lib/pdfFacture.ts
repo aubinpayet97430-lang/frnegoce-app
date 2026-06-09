@@ -66,14 +66,21 @@ export function genererPDFFacture(p: ParamsFacture) {
   doc.text(`Période : Semaine ${p.semaine} — du ${dateDebut} au ${dateFin}`, 105, 68, { align: 'center' })
   doc.setTextColor(0, 0, 0)
 
+  // ── Regroupement par produit ──
+  const parProduit = new Map<string, number>()
+  p.lignes.forEach(l => {
+    parProduit.set(l.nom_produit, (parProduit.get(l.nom_produit) || 0) + l.total)
+  })
+  const lignesGroupees = Array.from(parProduit.entries()).sort((a, b) => b[1] - a[1])
+
   // ── Tableau ──
   autoTable(doc, {
     startY: 80,
     head: [['Désignation', 'CA HT', 'Commission 4%']],
-    body: p.lignes.map(l => [
-      l.nom_produit,
-      `${l.total.toFixed(2)} €`,
-      `${(l.total * 0.04).toFixed(2)} €`,
+    body: lignesGroupees.map(([nom, total]) => [
+      nom,
+      `${total.toFixed(2)} €`,
+      `${(total * 0.04).toFixed(2)} €`,
     ]),
     styles: { fontSize: 9 },
     headStyles: { fillColor: [99, 102, 241] },
