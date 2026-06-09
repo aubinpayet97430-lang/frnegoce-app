@@ -41,8 +41,8 @@ function NouveauBLForm() {
   function updateLigne(id: string, field: string, value: string | number) {
     setLignes(prev => prev.map(l => {
       if (l.id !== id) return l
-      const updated = { ...l, [field]: value }
-      updated.total = updated.quantite_caisses * updated.pcb * updated.prix_unitaire
+      const updated = { ...l, [field]: value, pcb: 1 }
+      updated.total = updated.quantite_caisses * updated.prix_unitaire
       return updated
     }))
   }
@@ -115,30 +115,15 @@ function NouveauBLForm() {
                     onChange={e => updateLigne(ligne.id, 'nom_produit', e.target.value)}
                     className="flex-1 border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs text-gray-500 mb-1 block">Nb caisses</label>
-                    <input type="number" min="0" value={ligne.quantite_caisses || ''}
+                    <label className="text-xs text-gray-500 mb-1 block">Poids (kg)</label>
+                    <input type="number" min="0" step="0.1" value={ligne.quantite_caisses || ''}
                       onChange={e => updateLigne(ligne.id, 'quantite_caisses', parseFloat(e.target.value) || 0)}
                       className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                   </div>
                   <div>
-                    <label className="text-xs text-gray-500 mb-1 block">PCB</label>
-                    <input type="number" min="1" value={ligne.pcb || ''}
-                      onChange={e => updateLigne(ligne.id, 'pcb', parseFloat(e.target.value) || 1)}
-                      className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500 mb-1 block">Unité</label>
-                    <select value={ligne.unite} onChange={e => updateLigne(ligne.id, 'unite', e.target.value)}
-                      className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                      <option value="kg">kg</option>
-                      <option value="unite">unité</option>
-                      <option value="caisse">caisse</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500 mb-1 block">Prix / {ligne.unite}</label>
+                    <label className="text-xs text-gray-500 mb-1 block">Prix / kg</label>
                     <input type="number" step="0.01" min="0" value={ligne.prix_unitaire || ''}
                       onChange={e => updateLigne(ligne.id, 'prix_unitaire', parseFloat(e.target.value) || 0)}
                       className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
@@ -146,7 +131,7 @@ function NouveauBLForm() {
                 </div>
                 {ligne.total > 0 && (
                   <div className="bg-emerald-50 rounded-xl px-4 py-2.5 flex justify-between items-center">
-                    <span className="text-xs text-emerald-600">{ligne.quantite_caisses} × {ligne.pcb} {ligne.unite} × {ligne.prix_unitaire.toFixed(2)} €</span>
+                    <span className="text-xs text-emerald-600">{ligne.quantite_caisses} kg × {ligne.prix_unitaire.toFixed(2)} €/kg</span>
                     <span className="font-bold text-emerald-700">{formatEuro(ligne.total)}</span>
                   </div>
                 )}

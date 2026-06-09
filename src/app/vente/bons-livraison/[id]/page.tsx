@@ -83,7 +83,7 @@ export default function BLVenteDetailPage() {
             <div key={i} className="px-5 py-4 border-b border-gray-50 last:border-0 flex justify-between items-center">
               <div>
                 <p className="font-medium text-gray-900">{l.nom_produit}</p>
-                <p className="text-sm text-gray-500">{l.quantite_caisses} caisses × {l.pcb} {l.unite} × {l.prix_unitaire.toFixed(2)} €</p>
+                <p className="text-sm text-gray-500">{l.quantite_caisses} kg × {l.prix_unitaire.toFixed(2)} €/kg</p>
               </div>
               <p className="font-semibold text-gray-900">{formatEuro(l.total)}</p>
             </div>

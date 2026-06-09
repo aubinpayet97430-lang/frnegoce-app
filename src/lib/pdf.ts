@@ -46,18 +46,16 @@ export function genererPDFBL(bl: BonLivraisonVente) {
 
   autoTable(doc, {
     startY: 72,
-    head: [['Produit', 'Caisses', 'PCB', 'Unité', 'Prix unit.', 'Total']],
+    head: [['Produit', 'Poids (kg)', 'Prix / kg', 'Total']],
     body: bl.lignes.map(l => [
       l.nom_produit,
-      l.quantite_caisses,
-      l.pcb,
-      l.unite,
+      `${l.quantite_caisses} kg`,
       `${l.prix_unitaire.toFixed(2)} €`,
       `${l.total.toFixed(2)} €`,
     ]),
     styles: { fontSize: 9 },
     headStyles: { fillColor: [16, 185, 129] },
-    foot: [['', '', '', '', 'TOTAL BL', `${bl.total_bl.toFixed(2)} €`]],
+    foot: [['', '', 'TOTAL BL', `${bl.total_bl.toFixed(2)} €`]],
     footStyles: { fontStyle: 'bold', fillColor: [243, 244, 246] },
   })
   doc.save(`BL_${bl.numero}.pdf`)
