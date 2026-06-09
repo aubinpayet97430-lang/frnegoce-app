@@ -19,20 +19,25 @@ interface Facture {
   numero: string
   semaine: string
   date: string
+  date_debut?: string
+  date_fin?: string
   ca_eligible: number
   montant_commission: number
   statut: 'en_attente' | 'validee' | 'rejetee'
   lignes: LigneFacture[]
   commentaire?: string
-  client?: { nom: string; adresse: string }
-  mention_tva?: string
+  client?: { nom: string; adresse: string; siret?: string }
+  conditions_reglement?: string
 }
 
 interface Profil {
   nom: string
   adresse: string
-  siret: string
+  siret?: string
+  siren?: string
   email: string
+  mention_activite?: string
+  conditions_reglement?: string
 }
 
 export default function FactureDetailPage() {
@@ -76,17 +81,29 @@ export default function FactureDetailPage() {
   function telechargerPDF() {
     if (!facture) return
     const [anneeStr, semaineStr] = facture.semaine.split('-S')
+    const sem = parseInt(semaineStr)
+    const an = parseInt(anneeStr)
+    const jan1 = new Date(an, 0, 1)
+    const debut = new Date(jan1.getTime() + (sem - 1) * 7 * 86400000)
+    const jour = debut.getDay() || 7
+    debut.setDate(debut.getDate() - jour + 1)
+    const fin = new Date(debut)
+    fin.setDate(fin.getDate() + 6)
+
     genererPDFFacture({
       numero: facture.numero,
-      semaine: parseInt(semaineStr),
-      annee: parseInt(anneeStr),
-      date: facture.date,
-      profil,
-      client: facture.client || { nom: 'Vindemia Logistique', adresse: '' },
+      semaine: sem,
+      annee: an,
+      date_debut: facture.date_debut || debut.toISOString().slice(0, 10),
+      date_fin: facture.date_fin || fin.toISOString().slice(0, 10),
+      date_emission: facture.date,
+      profil: { nom: profil.nom, adresse: profil.adresse, siren: profil.siren || '', email: profil.email, mention_activite: profil.mention_activite },
+      client: facture.client || { nom: 'SASU FR NÉGOCE', adresse: '', siret: '' },
       lignes: facture.lignes,
       ca_eligible: facture.ca_eligible,
       montant_commission: facture.montant_commission,
-      mention_tva: facture.mention_tva,
+      mention_tva: 'TVA non applicable — Article 293B du CGI',
+      conditions_reglement: facture.conditions_reglement || profil.conditions_reglement,
     })
   }
 

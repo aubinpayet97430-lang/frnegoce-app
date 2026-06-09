@@ -26,13 +26,16 @@ interface LigneSelectionnee {
 interface Profil {
   nom: string
   adresse: string
-  siret: string
+  siren: string
   email: string
+  mention_activite: string
+  conditions_reglement: string
 }
 
 interface Client {
   nom: string
   adresse: string
+  siret: string
 }
 
 function getNumSemaine(date: Date): number {
@@ -43,15 +46,24 @@ function getNumSemaine(date: Date): number {
   return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
 }
 
+function getDatesFromSemaine(semaine: number, annee: number) {
+  const jan1 = new Date(annee, 0, 1)
+  const debut = new Date(jan1.getTime() + (semaine - 1) * 7 * 86400000)
+  const jour = debut.getDay() || 7
+  debut.setDate(debut.getDate() - jour + 1)
+  const fin = new Date(debut)
+  fin.setDate(fin.getDate() + 6)
+  return { debut: debut.toISOString().slice(0, 10), fin: fin.toISOString().slice(0, 10) }
+}
+
 export default function NouvelleFacturePage() {
   const router = useRouter()
   const [semaine, setSemaine] = useState(getNumSemaine(new Date()))
   const [annee, setAnnee] = useState(new Date().getFullYear())
   const [bls, setBls] = useState<BL[]>([])
   const [lignes, setLignes] = useState<LigneSelectionnee[]>([])
-  const [profil, setProfil] = useState<Profil>({ nom: '', adresse: '', siret: '', email: '' })
-  const [client, setClient] = useState<Client>({ nom: 'Vindemia Logistique', adresse: '' })
-  const [mentionTva, setMentionTva] = useState('TVA non applicable, art. 293 B du CGI')
+  const [profil, setProfil] = useState<Profil>({ nom: '', adresse: '', siren: '', email: '', mention_activite: '', conditions_reglement: '' })
+  const [client, setClient] = useState<Client>({ nom: 'SASU FR NÉGOCE', adresse: '', siret: '' })
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
 
@@ -60,47 +72,21 @@ export default function NouvelleFacturePage() {
     supabase.auth.getSession().then(async ({ data }) => {
       if (!data.session) { router.push('/login'); return }
       const { data: p } = await supabase.from('profil_utilisateur').select('*').single()
-      if (p) setProfil(p)
+      if (p) setProfil(prev => ({ ...prev, ...p }))
     })
   }, [router])
 
   async function chargerSemaine() {
     setLoading(true)
     const supabase = createClient()
-
-    // Calculer les dates de début et fin de semaine
-    const jan1 = new Date(annee, 0, 1)
-    const daysOffset = (semaine - 1) * 7
-    const debut = new Date(jan1.getTime() + daysOffset * 86400000)
-    const jourSemaine = debut.getDay() || 7
-    debut.setDate(debut.getDate() - jourSemaine + 1)
-    const fin = new Date(debut)
-    fin.setDate(fin.getDate() + 6)
-
-    const dateDebut = debut.toISOString().slice(0, 10)
-    const dateFin = fin.toISOString().slice(0, 10)
-
-    const { data } = await supabase
-      .from('bons_livraison_vente')
-      .select('*')
-      .gte('date', dateDebut)
-      .lte('date', dateFin)
-      .order('date')
-
+    const { debut, fin } = getDatesFromSemaine(semaine, annee)
+    const { data } = await supabase.from('bons_livraison_vente').select('*').gte('date', debut).lte('date', fin).order('date')
     const blsData: BL[] = data || []
     setBls(blsData)
-
-    // Créer les lignes sélectionnables
     const lignesMap: LigneSelectionnee[] = []
     blsData.forEach(bl => {
       bl.lignes.forEach(l => {
-        lignesMap.push({
-          bl_id: bl.id,
-          bl_numero: bl.numero,
-          nom_produit: l.nom_produit,
-          total: l.total,
-          eligible: false,
-        })
+        lignesMap.push({ bl_id: bl.id, bl_numero: bl.numero, nom_produit: l.nom_produit, total: l.total, eligible: false })
       })
     })
     setLignes(lignesMap)
@@ -124,40 +110,27 @@ export default function NouvelleFacturePage() {
     if (!profil.nom || caEligible === 0) return
     setSaving(true)
     const supabase = createClient()
-
-    // Numéro de facture
     const { count } = await supabase.from('factures_commission').select('*', { count: 'exact', head: true })
     const numero = `FAC-${annee}-${String((count || 0) + 1).padStart(3, '0')}`
-
     const lignesEligibles = lignes.filter(l => l.eligible)
+    const dateEmission = new Date().toISOString().slice(0, 10)
+    const { debut, fin } = getDatesFromSemaine(semaine, annee)
 
-    const dateFacture = new Date().toISOString().slice(0, 10)
-
-    // Générer PDF
     genererPDFFacture({
-      numero,
-      semaine,
-      annee,
-      date: dateFacture,
-      profil,
-      client,
-      lignes: lignesEligibles,
-      ca_eligible: caEligible,
-      montant_commission: commission,
-      mention_tva: mentionTva,
+      numero, semaine, annee,
+      date_debut: debut, date_fin: fin, date_emission: dateEmission,
+      profil, client, lignes: lignesEligibles,
+      ca_eligible: caEligible, montant_commission: commission,
+      mention_tva: 'TVA non applicable — Article 293B du CGI',
+      conditions_reglement: profil.conditions_reglement,
     })
 
-    // Enregistrer en base
     await supabase.from('factures_commission').insert({
-      numero,
-      semaine: `${annee}-S${semaine}`,
-      date: dateFacture,
-      ca_eligible: caEligible,
-      montant_commission: commission,
-      statut: 'en_attente',
-      lignes: lignesEligibles,
-      client,
-      mention_tva: mentionTva,
+      numero, semaine: `${annee}-S${semaine}`, date: dateEmission,
+      ca_eligible: caEligible, montant_commission: commission,
+      statut: 'en_attente', lignes: lignesEligibles,
+      client, date_debut: debut, date_fin: fin,
+      conditions_reglement: profil.conditions_reglement,
     })
 
     router.push('/factures')
@@ -179,49 +152,28 @@ export default function NouvelleFacturePage() {
           </div>
         </div>
 
-        {/* Profil */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-4">
-          <p className="text-sm font-semibold text-gray-700 mb-3">Vos informations</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Nom / Raison sociale</label>
-              <input type="text" value={profil.nom} onChange={e => setProfil(p => ({ ...p, nom: e.target.value }))}
-                placeholder="Aubin Payet" className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">SIRET</label>
-              <input type="text" value={profil.siret} onChange={e => setProfil(p => ({ ...p, siret: e.target.value }))}
-                placeholder="000 000 000 00000" className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-            </div>
-            <div className="col-span-2">
-              <label className="text-xs text-gray-500 mb-1 block">Adresse</label>
-              <input type="text" value={profil.adresse} onChange={e => setProfil(p => ({ ...p, adresse: e.target.value }))}
-                placeholder="1 rue de la Coopérative, 97400 Saint-Denis" className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-            </div>
-          </div>
-        </div>
-
         {/* Client */}
         <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-4">
-          <p className="text-sm font-semibold text-gray-700 mb-3">Informations client</p>
+          <p className="text-sm font-semibold text-gray-700 mb-3">Facturé à</p>
           <div className="space-y-3">
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Nom / Raison sociale</label>
               <input type="text" value={client.nom} onChange={e => setClient(c => ({ ...c, nom: e.target.value }))}
-                placeholder="Vindemia Logistique"
                 className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Adresse</label>
-              <textarea value={client.adresse} onChange={e => setClient(c => ({ ...c, adresse: e.target.value }))}
-                placeholder="1 rue du Port, 97400 Saint-Denis"
-                rows={2}
-                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Mention légale TVA</label>
-              <input type="text" value={mentionTva} onChange={e => setMentionTva(e.target.value)}
-                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Adresse</label>
+                <input type="text" value={client.adresse} onChange={e => setClient(c => ({ ...c, adresse: e.target.value }))}
+                  placeholder="07 Chemin de l'Océan — 97450 Saint-Louis"
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">SIRET client</label>
+                <input type="text" value={client.siret} onChange={e => setClient(c => ({ ...c, siret: e.target.value }))}
+                  placeholder="818 154 635 000 10"
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
             </div>
           </div>
         </div>
@@ -258,16 +210,14 @@ export default function NouvelleFacturePage() {
               return (
                 <div key={blId} className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
                   <div className="flex items-center gap-3 px-5 py-3 bg-gray-50 border-b border-gray-100">
-                    <input type="checkbox" checked={toutesEligibles} onChange={() => toggleBL(blId)}
-                      className="w-4 h-4 accent-indigo-600" />
+                    <input type="checkbox" checked={toutesEligibles} onChange={() => toggleBL(blId)} className="w-4 h-4 accent-indigo-600" />
                     <p className="font-semibold text-gray-800 text-sm">BL {bl?.numero} — {bl ? new Date(bl.date).toLocaleDateString('fr-FR') : ''}</p>
                     <p className="ml-auto text-sm font-bold text-gray-700">{formatEuro(bl?.total_bl || 0)}</p>
                   </div>
-                  {blLignes.map((l, idx) => {
-                    const globalIdx = lignes.findIndex((ll, i) => ll.bl_id === blId && ll.nom_produit === l.nom_produit && i === lignes.indexOf(l))
+                  {blLignes.map((l) => {
                     const realIdx = lignes.indexOf(l)
                     return (
-                      <div key={idx} onClick={() => toggleEligible(realIdx)}
+                      <div key={realIdx} onClick={() => toggleEligible(realIdx)}
                         className={`flex items-center gap-3 px-5 py-3 cursor-pointer border-b border-gray-50 last:border-0 transition-colors ${l.eligible ? 'bg-indigo-50' : 'hover:bg-gray-50'}`}>
                         <input type="checkbox" checked={l.eligible} onChange={() => toggleEligible(realIdx)}
                           className="w-4 h-4 accent-indigo-600" onClick={e => e.stopPropagation()} />
@@ -289,7 +239,6 @@ export default function NouvelleFacturePage() {
           </div>
         )}
 
-        {/* Récap */}
         {caEligible > 0 && (
           <div className="bg-indigo-600 rounded-2xl p-5 mb-4">
             <div className="grid grid-cols-2 gap-3 text-white">

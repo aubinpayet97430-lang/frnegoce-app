@@ -11,92 +11,111 @@ interface ParamsFacture {
   numero: string
   semaine: number
   annee: number
-  date: string
-  profil: { nom: string; adresse: string; siret: string; email: string }
-  client: { nom: string; adresse: string }
+  date_debut: string
+  date_fin: string
+  date_emission: string
+  profil: { nom: string; adresse: string; siren: string; email: string; mention_activite?: string }
+  client: { nom: string; adresse: string; siret?: string }
   lignes: LigneFacture[]
   ca_eligible: number
   montant_commission: number
-  mention_tva?: string
+  mention_tva: string
+  conditions_reglement?: string
 }
 
 export function genererPDFFacture(p: ParamsFacture) {
   const doc = new jsPDF()
+  const dateDebut = new Date(p.date_debut).toLocaleDateString('fr-FR')
+  const dateFin = new Date(p.date_fin).toLocaleDateString('fr-FR')
+  const dateEmission = new Date(p.date_emission).toLocaleDateString('fr-FR')
 
-  // Titre
-  doc.setFontSize(18)
+  // ── Bloc émetteur (gauche) ──
+  doc.setFontSize(11)
   doc.setFont('helvetica', 'bold')
-  doc.text('FACTURE DE COMMISSION', 105, 20, { align: 'center' })
-
-  // Bloc émetteur (gauche)
-  doc.setFontSize(10)
-  doc.setFont('helvetica', 'bold')
-  doc.text(p.profil.nom, 14, 36)
+  doc.text(p.profil.nom, 14, 22)
   doc.setFont('helvetica', 'normal')
-  if (p.profil.adresse) doc.text(p.profil.adresse, 14, 42)
-  if (p.profil.siret) doc.text(`SIRET : ${p.profil.siret}`, 14, 48)
-  if (p.profil.email) doc.text(p.profil.email, 14, 54)
+  doc.setFontSize(9)
+  if (p.profil.mention_activite) doc.text(p.profil.mention_activite, 14, 28)
+  if (p.profil.siren) doc.text(`SIREN ${p.profil.siren}${p.profil.adresse ? ' — ' + p.profil.adresse : ''}`, 14, 34)
+  if (p.mention_tva) doc.text(p.mention_tva, 14, 40)
 
-  // Bloc client / destinataire (droite)
-  doc.setFont('helvetica', 'bold')
-  doc.text('Facturé à :', 130, 36)
-  doc.setFont('helvetica', 'normal')
-  doc.text(p.client.nom || '—', 130, 42)
-  if (p.client.adresse) {
-    const lignesAdresse = p.client.adresse.split('\n')
-    lignesAdresse.forEach((ligne, i) => doc.text(ligne, 130, 48 + i * 6))
-  }
-
-  // Bandeau infos facture
-  doc.setFillColor(99, 102, 241)
-  doc.roundedRect(14, 62, 182, 16, 3, 3, 'F')
-  doc.setTextColor(255, 255, 255)
+  // ── Bloc client (droite) ──
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(9)
-  doc.text(`N° ${p.numero}`, 20, 72)
-  doc.text(`Semaine ${p.semaine} — ${p.annee}`, 105, 72, { align: 'center' })
-  doc.text(`Date : ${new Date(p.date).toLocaleDateString('fr-FR')}`, 190, 72, { align: 'right' })
+  doc.text('Facturé à :', 130, 22)
+  doc.setFont('helvetica', 'normal')
+  doc.text(p.client.nom, 130, 28)
+  if (p.client.adresse) {
+    const lignes = p.client.adresse.split('\n')
+    lignes.forEach((l, i) => doc.text(l, 130, 34 + i * 6))
+    if (p.client.siret) doc.text(`SIRET ${p.client.siret}`, 130, 34 + lignes.length * 6)
+  } else if (p.client.siret) {
+    doc.text(`SIRET ${p.client.siret}`, 130, 34)
+  }
+
+  // ── Bandeau facture ──
+  doc.setFillColor(99, 102, 241)
+  doc.roundedRect(14, 50, 182, 22, 3, 3, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(13)
+  doc.text(`FACTURE N° ${p.numero}`, 105, 60, { align: 'center' })
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'normal')
+  doc.text(`Date : ${dateEmission}`, 20, 68)
+  doc.text(`Période : Semaine ${p.semaine} — du ${dateDebut} au ${dateFin}`, 105, 68, { align: 'center' })
   doc.setTextColor(0, 0, 0)
 
-  // Tableau des lignes
+  // ── Tableau ──
   autoTable(doc, {
-    startY: 84,
-    head: [['BL', 'Produit', 'CA HT']],
-    body: p.lignes.map(l => [l.bl_numero, l.nom_produit, `${l.total.toFixed(2)} €`]),
+    startY: 80,
+    head: [['Désignation', 'CA HT', 'Commission 4%']],
+    body: p.lignes.map(l => [
+      l.nom_produit,
+      `${l.total.toFixed(2)} €`,
+      `${(l.total * 0.04).toFixed(2)} €`,
+    ]),
     styles: { fontSize: 9 },
     headStyles: { fillColor: [99, 102, 241] },
-    columnStyles: { 2: { halign: 'right' } },
+    columnStyles: {
+      0: { cellWidth: 110 },
+      1: { halign: 'right', cellWidth: 35 },
+      2: { halign: 'right', cellWidth: 35 },
+    },
   })
 
-  const finalY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10
+  const finalY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8
 
-  // Récapitulatif
-  doc.setFontSize(10)
+  // ── Récap ──
+  doc.setFontSize(9)
   doc.setFont('helvetica', 'normal')
   doc.text('CA HT éligible :', 120, finalY)
   doc.setFont('helvetica', 'bold')
-  doc.text(`${p.ca_eligible.toFixed(2)} €`, 190, finalY, { align: 'right' })
+  doc.text(`${p.ca_eligible.toFixed(2)} €`, 195, finalY, { align: 'right' })
 
   doc.setFont('helvetica', 'normal')
-  doc.text('Taux de commission :', 120, finalY + 8)
-  doc.text('4 %', 190, finalY + 8, { align: 'right' })
+  doc.text('Taux de commission :', 120, finalY + 7)
+  doc.text('4 %', 195, finalY + 7, { align: 'right' })
 
-  // Total à payer
+  // ── NET À PAYER ──
   doc.setFillColor(99, 102, 241)
-  doc.roundedRect(110, finalY + 14, 84, 14, 3, 3, 'F')
+  doc.roundedRect(110, finalY + 13, 84, 14, 3, 3, 'F')
   doc.setTextColor(255, 255, 255)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(11)
-  doc.text('TOTAL À PAYER :', 116, finalY + 23)
-  doc.text(`${p.montant_commission.toFixed(2)} €`, 188, finalY + 23, { align: 'right' })
+  doc.text('NET À PAYER :', 116, finalY + 22)
+  doc.text(`${p.montant_commission.toFixed(2)} €`, 188, finalY + 22, { align: 'right' })
   doc.setTextColor(0, 0, 0)
 
-  // Mention légale TVA
-  const mention = p.mention_tva || 'TVA non applicable, art. 293 B du CGI'
+  // ── Pied de page ──
   doc.setFontSize(8)
   doc.setFont('helvetica', 'italic')
   doc.setTextColor(120, 120, 120)
-  doc.text(mention, 105, 285, { align: 'center' })
+  const mentionY = 278
+  doc.text('TVA non applicable — Article 293B du CGI', 105, mentionY, { align: 'center' })
+  if (p.conditions_reglement) {
+    doc.text(p.conditions_reglement, 105, mentionY + 5, { align: 'center' })
+  }
   doc.setTextColor(0, 0, 0)
 
   doc.save(`${p.numero}.pdf`)
