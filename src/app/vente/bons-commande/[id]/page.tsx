@@ -4,7 +4,7 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
-import { ArrowLeft, Download, Plus, FileCheck, Pencil, Trash2 } from 'lucide-react'
+import { ArrowLeft, Download, Plus, FileCheck, Pencil, Trash2, Link2 } from 'lucide-react'
 import { genererPDFVente } from '@/lib/pdf'
 import { formatEuro, formatDate } from '@/lib/utils'
 
@@ -22,6 +22,9 @@ export default function BCVenteDetailPage() {
   const [bl, setBl] = useState<BL | null>(null)
   const [loading, setLoading] = useState(true)
   const [suppression, setSuppression] = useState(false)
+  const [showAssocier, setShowAssocier] = useState(false)
+  const [blsDisponibles, setBlsDisponibles] = useState<BL[]>([])
+  const [associating, setAssociating] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
@@ -38,6 +41,25 @@ export default function BCVenteDetailPage() {
       setLoading(false)
     })
   }, [id, router])
+
+  async function chargerBlsDisponibles() {
+    const supabase = createClient()
+    // BL sans bc_id associé (ou avec bc_id null)
+    const { data } = await supabase.from('bons_livraison_vente').select('id, numero, date, total_bl').order('date', { ascending: false })
+    setBlsDisponibles(data || [])
+    setShowAssocier(true)
+  }
+
+  async function associerBL(blId: string) {
+    setAssociating(true)
+    const supabase = createClient()
+    await supabase.from('bons_commande_vente').update({ bl_id: blId }).eq('id', id)
+    const { data: blData } = await supabase.from('bons_livraison_vente').select('*').eq('id', blId).single()
+    setBl(blData)
+    setBc(b => b ? { ...b, bl_id: blId } : b)
+    setShowAssocier(false)
+    setAssociating(false)
+  }
 
   async function supprimer() {
     if (!confirm('Supprimer ce bon de commande ?')) return
@@ -136,12 +158,38 @@ export default function BCVenteDetailPage() {
               <p className="font-bold text-emerald-700">{formatEuro(bl.total_bl)}</p>
             </Link>
           ) : (
-            <div>
+            <div className="space-y-2">
               <p className="text-sm text-gray-400 mb-3">Aucun BL associé à ce BC.</p>
+              <button onClick={chargerBlsDisponibles}
+                className="w-full flex items-center gap-2 border-2 border-dashed border-indigo-300 hover:border-indigo-500 rounded-xl py-3 justify-center text-sm font-medium text-indigo-400 hover:text-indigo-600 transition-colors">
+                <Link2 size={16} /> Associer un BL existant
+              </button>
               <Link href={`/vente/bons-livraison/nouveau?bc_id=${bc.id}&bc_numero=${bc.numero}`}
                 className="flex items-center gap-2 border-2 border-dashed border-gray-300 hover:border-emerald-400 rounded-xl py-3 justify-center text-sm font-medium text-gray-400 hover:text-emerald-600 transition-colors">
-                <Plus size={16} /> Créer le BL associé
+                <Plus size={16} /> Créer un nouveau BL
               </Link>
+
+              {showAssocier && (
+                <div className="mt-3 border border-gray-200 rounded-xl overflow-hidden">
+                  <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
+                    <p className="text-xs font-semibold text-gray-600">Choisir un BL à associer</p>
+                  </div>
+                  {blsDisponibles.length === 0 ? (
+                    <p className="text-sm text-gray-400 px-4 py-3">Aucun BL disponible.</p>
+                  ) : (
+                    blsDisponibles.map(b => (
+                      <button key={b.id} onClick={() => associerBL(b.id)} disabled={associating}
+                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-indigo-50 border-b border-gray-50 last:border-0 transition-colors text-left">
+                        <div>
+                          <p className="font-semibold text-sm text-gray-900">BL {b.numero}</p>
+                          <p className="text-xs text-gray-400">{formatDate(b.date)}</p>
+                        </div>
+                        <p className="font-bold text-sm text-gray-700">{formatEuro(b.total_bl)}</p>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
