@@ -10,6 +10,7 @@ import Link from 'next/link'
 
 interface Stats {
   ca_vente_semaine: number
+  ca_commande_semaine: number
   ca_vente_mois: number
   ca_achat_semaine: number
   marge_semaine: number
@@ -55,9 +56,10 @@ export default function DashboardPage() {
     const supabase = createClient()
     const { debut, fin, debutMois } = getDatesFromSemaine(sem, an)
 
-    const [bls, bcsAll, achats, blsMois] = await Promise.all([
+    const [bls, bcsAll, bcsSemaine, achats, blsMois] = await Promise.all([
       supabase.from('bons_livraison_vente').select('*').gte('date', debut).lte('date', fin),
       supabase.from('bons_commande_vente').select('*').order('date', { ascending: false }).limit(5),
+      supabase.from('bons_commande_vente').select('total_bc').gte('date', debut).lte('date', fin),
       supabase.from('bons_commande_achat').select('*').gte('date', debut).lte('date', fin),
       supabase.from('bons_livraison_vente').select('total_bl').gte('date', debutMois).lte('date', fin),
     ])
@@ -67,6 +69,7 @@ export default function DashboardPage() {
     const achatsData = achats.data || []
 
     const ca_vente_semaine = blsData.reduce((s: number, b: { total_bl: number }) => s + b.total_bl, 0)
+    const ca_commande_semaine = (bcsSemaine.data || []).reduce((s: number, b: { total_bc: number }) => s + b.total_bc, 0)
     const ca_vente_mois = (blsMois.data || []).reduce((s: number, b: { total_bl: number }) => s + b.total_bl, 0)
     const ca_achat_semaine = achatsData.reduce((s: number, a: { total_achat: number }) => s + a.total_achat, 0)
     const total_vente_achat = achatsData.reduce((s: number, a: { total_vente: number }) => s + a.total_vente, 0)
@@ -74,7 +77,7 @@ export default function DashboardPage() {
     const bc_sans_bl = bcsData.filter((bc: { bl_id: string | null }) => !bc.bl_id).length
 
     setStats({
-      ca_vente_semaine, ca_vente_mois, ca_achat_semaine, marge_semaine,
+      ca_vente_semaine, ca_commande_semaine, ca_vente_mois, ca_achat_semaine, marge_semaine,
       bc_sans_bl, bl_semaine: blsData.length, derniers_bc: bcsData.slice(0, 5),
     })
     setLoading(false)
@@ -162,10 +165,16 @@ export default function DashboardPage() {
               <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-2">
                 <TrendingUp size={14} /> Vente — S{semaine}
               </h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <StatCard label="CA vente semaine" value={formatEuro(stats.ca_vente_semaine)} sub={`${stats.bl_semaine} BL`} color="indigo" />
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <StatCard label="CA commandé" value={formatEuro(stats.ca_commande_semaine)} sub="BC de la semaine" color="amber" />
+                <StatCard label="CA livré" value={formatEuro(stats.ca_vente_semaine)} sub={`${stats.bl_semaine} BL`} color="indigo" />
+                <StatCard
+                  label="Écart commandé / livré"
+                  value={formatEuro(stats.ca_vente_semaine - stats.ca_commande_semaine)}
+                  sub={stats.ca_vente_semaine >= stats.ca_commande_semaine ? 'livré ≥ commandé' : 'livré < commandé'}
+                  color={stats.ca_vente_semaine >= stats.ca_commande_semaine ? 'emerald' : 'rose'}
+                />
                 <StatCard label="CA vente mois" value={formatEuro(stats.ca_vente_mois)} color="indigo" />
-                <StatCard label="BC en attente de BL" value={`${stats.bc_sans_bl}`} sub="bons sans livraison" color={stats.bc_sans_bl > 0 ? 'amber' : 'emerald'} />
               </div>
             </div>
 
