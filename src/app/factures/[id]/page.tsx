@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
-import { ArrowLeft, Download, CheckCircle, XCircle, Clock, Trash2 } from 'lucide-react'
+import { ArrowLeft, Download, CheckCircle, XCircle, Clock, Trash2, Pencil, Check, X } from 'lucide-react'
 import { formatEuro, formatDate } from '@/lib/utils'
 import { genererPDFFacture } from '@/lib/pdfFacture'
 
@@ -47,6 +47,8 @@ export default function FactureDetailPage() {
   const [profil, setProfil] = useState<Profil>({ nom: '', adresse: '', siret: '', email: '' })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [editNumero, setEditNumero] = useState(false)
+  const [numeroEdit, setNumeroEdit] = useState('')
 
   useEffect(() => {
     const supabase = createClient()
@@ -61,6 +63,16 @@ export default function FactureDetailPage() {
       setLoading(false)
     })
   }, [id, router])
+
+  async function sauvegarderNumero() {
+    if (!facture || !numeroEdit.trim()) return
+    setSaving(true)
+    const supabase = createClient()
+    await supabase.from('factures_commission').update({ numero: numeroEdit.trim() }).eq('id', id)
+    setFacture(f => f ? { ...f, numero: numeroEdit.trim() } : f)
+    setEditNumero(false)
+    setSaving(false)
+  }
 
   async function changerStatut(statut: 'en_attente' | 'validee' | 'rejetee') {
     if (!facture) return
@@ -129,7 +141,27 @@ export default function FactureDetailPage() {
             <ArrowLeft size={20} />
           </button>
           <div className="flex-1">
-            <h1 className="text-2xl font-bold text-gray-900">{facture.numero}</h1>
+            {editNumero ? (
+              <div className="flex items-center gap-2">
+                <input
+                  autoFocus
+                  value={numeroEdit}
+                  onChange={e => setNumeroEdit(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') sauvegarderNumero(); if (e.key === 'Escape') setEditNumero(false) }}
+                  className="text-xl font-bold border border-indigo-400 rounded-lg px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-48"
+                />
+                <button onClick={sauvegarderNumero} disabled={saving} className="p-1 text-emerald-600 hover:bg-emerald-50 rounded-lg"><Check size={18} /></button>
+                <button onClick={() => setEditNumero(false)} className="p-1 text-gray-400 hover:bg-gray-100 rounded-lg"><X size={18} /></button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 group">
+                <h1 className="text-2xl font-bold text-gray-900">{facture.numero}</h1>
+                <button onClick={() => { setNumeroEdit(facture.numero); setEditNumero(true) }}
+                  className="p-1 text-gray-300 hover:text-indigo-500 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Pencil size={15} />
+                </button>
+              </div>
+            )}
             <p className="text-gray-500 text-sm">Semaine {facture.semaine} — {formatDate(facture.date)}</p>
           </div>
           <div className="flex gap-2">
